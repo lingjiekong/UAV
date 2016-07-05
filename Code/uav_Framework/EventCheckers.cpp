@@ -32,7 +32,7 @@
 // This include will pull in all of the headers from the service modules
 // providing the prototypes for all of the post functions
 //#include "./Framework/ES_ServiceHeaders.h"
-#include "TestHarnessService0.h"
+#include "IMUService.h"
 
 // this test harness for the framework references the serial routines that
 // are defined in ES_Port.c
@@ -114,7 +114,7 @@ bool Check4Keystroke(void)
     ES_Event ThisEvent;
     ThisEvent.EventType = ES_NEW_KEY;
     ThisEvent.EventParam = GetNewKey();
-    PostTestHarnessService0( ThisEvent );
+    //PostIMUService( ThisEvent );
     return true;
   }
   return false;
