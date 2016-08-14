@@ -5,23 +5,18 @@
 
  ****************************************************************************/
 
-#ifndef IMUService_H
-#define IMUService_H
+#ifndef UAVFSM_H
+#define UAVFSM_H
 
 #include "ES_Configure.h"
 #include "./Framework/ES_Types.h"
 
-
 // Public Function Prototypes
-bool InitIMUService( uint8_t Priority );
-bool PostIMUService( ES_Event ThisEvent );
-ES_Event RunIMUService( ES_Event ThisEvent );
 
-// double GetYaw(void);
-// double GetRoll(void);
-// double GetPitch(void);
-void IMUISR(void);
-void GetYPR(float* yprCopy);
+bool InitUAVFSM( uint8_t Priority );
+bool PostUAVFSM( ES_Event ThisEvent );
+ES_Event RunUAVFSM( ES_Event ThisEvent );
 
-#endif /* SerIMUService_H */
+
+#endif /* ServUAVFSM_H */
 

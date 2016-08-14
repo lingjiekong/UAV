@@ -30,7 +30,7 @@
 /****************************************************************************/
 // This macro determines that number of services that are *actually* used in
 // a particular application. It will vary in value from 1 to MAX_NUM_SERVICES
-#define NUM_SERVICES 1
+#define NUM_SERVICES 2
 
 /****************************************************************************/
 // These are the definitions for Service 0, the lowest priority service.
@@ -56,11 +56,11 @@
 #if NUM_SERVICES > 1
 // the header file with the public function prototypes
 //prefix filename with ../ and surround with ""
-#define SERV_1_HEADER "../TestHarnessService1.h"
+#define SERV_1_HEADER "../UAVFSM.h"
 // the name of the Init function
-#define SERV_1_INIT InitTestHarnessService1
+#define SERV_1_INIT InitUAVFSM
 // the name of the run function
-#define SERV_1_RUN RunTestHarnessService1
+#define SERV_1_RUN RunUAVFSM
 // How big should this services Queue be?
 #define SERV_1_QUEUE_SIZE 3
 #endif
@@ -273,7 +273,8 @@ typedef enum {  ES_NO_EVENT = 0,
                 /* User-defined events start here */
                 ES_NEW_KEY, /* signals a new key received from terminal */
                 ES_LOCK,
-                ES_UNLOCK} ES_EventTyp_t ;
+                ES_UNLOCK,
+                ES_UPDATEYRP} ES_EventTyp_t ;
 
 /****************************************************************************/
 // These are the definitions for the Distribution lists. Each definition
