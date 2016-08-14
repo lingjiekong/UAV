@@ -64,7 +64,7 @@ static void dmpDataReady(void);
 // type of state variable should match that of enum in header file
 
 // with the introduction of Gen2, we need a module level Priority variable
-uint8_t MyPriority;
+static uint8_t MyPriority;
 bool blinkState = false;
 
 // MPU control/status vars
