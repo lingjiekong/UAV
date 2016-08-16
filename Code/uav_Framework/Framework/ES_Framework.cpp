@@ -33,6 +33,7 @@
 
 #include "ES_ServiceHeaders.h"
 #include "../IMUService.h"
+#include "../RCService.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 typedef bool InitFunc_t( uint8_t Priority );
@@ -293,8 +294,10 @@ ES_Return_t ES_Run( void ){
               return FailedRun;
       }
     }
+    
     // Interrupt Service Routine
     IMUISR();
+    RCISR();
 
     // all the queues are empty, so look for new user detected events
     ES_CheckUserEvents();
