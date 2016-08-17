@@ -34,16 +34,28 @@
 #define HALF_SEC (ONE_SEC/2)
 #define TWO_SEC (ONE_SEC*2)
 #define FIVE_SEC (ONE_SEC*5)
+#define YAW_CALI_VECTOR_LENGTH 50
+#define CALI_RANGE 0.5
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
    relevant to the behaviour of this service
 */
+static void yawCali(void);
+static bool yawCaliComplete(void);
+static void yawCaliResult(void); 
 
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 static float ypr[3];
+static float yawCaliVector[YAW_CALI_VECTOR_LENGTH];
+static double yawCalivalue = 0.00;
+static double yawCaliMax;
+static double yawCaliMin;
+static int yawCounter = 0;
+static UAVState_t CurrentState;
+
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -72,6 +84,7 @@ bool InitUAVFSM ( uint8_t Priority )
    *******************************************/  
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
+  CurrentState = CaliUAV;
   if (ES_PostToService( MyPriority, ThisEvent) == true)
   {
       return true;
@@ -124,22 +137,29 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
 {
   ES_Event ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors  
-  switch (ThisEvent.EventType){
-    case ES_UPDATEYRP:
-      GetYPR(&ypr[0]);
-      Serial.print("ypr\t");
-      Serial.print(ypr[0] * 180/M_PI);
-      Serial.print("\t");
-      Serial.print(ypr[1] * 180/M_PI);
-      Serial.print("\t");
-      Serial.println(ypr[2] * 180/M_PI);
+  switch (CurrentState){
+    case CaliUAV:
+      if (ES_UPDATEYRP == ThisEvent.EventType){
+        GetYPR(&ypr[0]);
+        yawCali();
+        if (yawCaliComplete()){
+          yawCaliResult();
+          CurrentState = RunUAV;
+        }
+      }
     break;
 
-
-    default:
-
+    case RunUAV:
+      if (ES_UPDATEYRP == ThisEvent.EventType){
+        GetYPR(&ypr[0]);
+        Serial.print("ypr\t");
+        Serial.print((ypr[0] * 180/M_PI)-yawCalivalue);
+        Serial.print("\t");
+        Serial.print(ypr[1] * 180/M_PI);
+        Serial.print("\t");
+        Serial.println(ypr[2] * 180/M_PI);
+      }
     break;
-
   }
   return ReturnEvent;
 }
@@ -147,20 +167,51 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
 /***************************************************************************
  private functions
  ***************************************************************************/
+static void yawCali(void){
+  if (yawCounter < YAW_CALI_VECTOR_LENGTH){
+    yawCaliVector[yawCounter] = ypr[0]*(180/M_PI);
+    yawCounter++;
+  } else {
+    for (int i = 0; i < YAW_CALI_VECTOR_LENGTH-1; i++){
+      yawCaliVector[i] = yawCaliVector[i+1];
+    }
+    yawCaliVector[YAW_CALI_VECTOR_LENGTH-1] = ypr[0]*(180/M_PI);
+  }
+}
 
-static void InitLED(void)
-{
+static bool yawCaliComplete(void){
+  if (yawCounter > YAW_CALI_VECTOR_LENGTH-1){
+    yawCaliMax = -160.00;
+    yawCaliMin = 160.00;
+    for (int i = 0; i < YAW_CALI_VECTOR_LENGTH; i++){
+      if (yawCaliVector[i] > yawCaliMax){
+        yawCaliMax = yawCaliVector[i];
+      }
+      if (yawCaliVector[i] < yawCaliMin){
+        yawCaliMin = yawCaliVector[i];
+      }
+    }
+    Serial.println("CaliYawRange: ");
+    Serial.print((yawCaliMax - yawCaliMin));
+    Serial.println("");
+    if ((yawCaliMax - yawCaliMin) < CALI_RANGE){
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+static void yawCaliResult(void){
+  for (int i = 0; i < YAW_CALI_VECTOR_LENGTH; i++){
+    yawCalivalue += yawCaliVector[i];
+  }
+  yawCalivalue /= YAW_CALI_VECTOR_LENGTH;
 }
 
 
-static void BlinkLED(void)
-{
-	static uint8_t LEDvalue = 2;
-	
-	// Turn off all of the LEDs
-	// Turn on the new LEDs
-	
-}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 

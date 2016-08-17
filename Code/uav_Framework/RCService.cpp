@@ -153,7 +153,7 @@ void RCISR(void){
   if (true == RCISRFlag){
       current_time = micros();
     //Channel 1=========================================
-    if(PINB & B00000001){  /                                     //Is input 8 high?
+    if(PINB & B00000001){                                        //Is input 8 high?
       if(last_channel_1 == 0){                                   //Input 8 changed from 0 to 1
         last_channel_1 = 1;                                      //Remember current input state
         timer_1 = current_time;                                  //Set timer_1 to current_time

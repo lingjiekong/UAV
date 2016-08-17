@@ -16,6 +16,9 @@
 bool InitUAVFSM( uint8_t Priority );
 bool PostUAVFSM( ES_Event ThisEvent );
 ES_Event RunUAVFSM( ES_Event ThisEvent );
+typedef enum {CaliUAV, RunUAV} UAVState_t ;
+
+
 
 
 #endif /* ServUAVFSM_H */
