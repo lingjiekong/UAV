@@ -26,6 +26,7 @@
 #include "./Framework/ES_DeferRecall.h"
 #include "UAVFSM.h"
 #include "IMUService.h"
+#include "RCService.h"
 
 
 /*----------------------------- Module Defines ----------------------------*/
@@ -35,7 +36,7 @@
 #define TWO_SEC (ONE_SEC*2)
 #define FIVE_SEC (ONE_SEC*5)
 #define YAW_CALI_VECTOR_LENGTH 50
-#define CALI_RANGE 0.5
+#define CALI_RANGE 0.2
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -49,6 +50,7 @@ static void yawCaliResult(void);
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 static float ypr[3];
+static int RCInput[4];
 static float yawCaliVector[YAW_CALI_VECTOR_LENGTH];
 static double yawCalivalue = 0.00;
 static double yawCaliMax;
@@ -150,15 +152,26 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
     break;
 
     case RunUAV:
-      if (ES_UPDATEYRP == ThisEvent.EventType){
-        GetYPR(&ypr[0]);
-        Serial.print("ypr\t");
-        Serial.print((ypr[0] * 180/M_PI)-yawCalivalue);
-        Serial.print("\t");
-        Serial.print(ypr[1] * 180/M_PI);
-        Serial.print("\t");
-        Serial.println(ypr[2] * 180/M_PI);
-      }
+      // if (ES_UPDATEYRP == ThisEvent.EventType){
+      //   GetYPR(&ypr[0]);
+      //   Serial.print("ypr\t");
+      //   Serial.print((ypr[0] * 180/M_PI)-yawCalivalue);
+      //   Serial.print("\t");
+      //   Serial.print(ypr[1] * 180/M_PI);
+      //   Serial.print("\t");
+      //   Serial.println(ypr[2] * 180/M_PI);
+      // }
+        if (ES_UPDATERC == ThisEvent.EventType){
+          GetRC(&RCInput[0]);
+          Serial.print("RCInput\t");
+          Serial.print(RCInput[0]);
+          Serial.print("\t");
+          Serial.print(RCInput[1]);
+          Serial.print("\t");
+          Serial.print(RCInput[2]);
+          Serial.print("\t");
+          Serial.println(RCInput[3]);  
+        }
     break;
   }
   return ReturnEvent;

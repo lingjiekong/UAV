@@ -26,6 +26,7 @@
 #include "./Framework/ES_Framework.h"
 #include "./Framework/ES_DeferRecall.h"
 #include "RCService.h" 
+#include "UAVFSM.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 // Pin define
@@ -35,6 +36,7 @@
 
 /*---------------------------- Global Functions ---------------------------*/
 void RCISR(void);
+void GetRC(int* RCCopy);
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -50,7 +52,7 @@ static void InitRCISR(void);
 static uint8_t MyPriority;
 static byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 static unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
-static int receiver_input[5];
+static int receiver_input[4];
 static bool RCISRFlag = false;
 
 
@@ -143,6 +145,12 @@ ES_Event RunRCService( ES_Event ThisEvent )
 /***************************************************************************
  global functions
  ***************************************************************************/
+void GetRC(int* RCCopy){
+  for (int i = 0; i < 4; i++){
+    *(RCCopy + i) = receiver_input[i];
+  }
+}
+
  // Interrupt
 ISR(PCINT0_vect){
   RCISRFlag = true;
@@ -161,7 +169,7 @@ void RCISR(void){
     }
     else if(last_channel_1 == 1){                                //Input 8 is not high and changed from 1 to 0
       last_channel_1 = 0;                                        //Remember current input state
-      receiver_input[1] = current_time - timer_1;                //Channel 1 is current_time - timer_1
+      receiver_input[0] = current_time - timer_1;                //Channel 1 is current_time - timer_1
     }
     //Channel 2=========================================
     if(PINB & B00000010 ){                                       //Is input 9 high?
@@ -172,7 +180,7 @@ void RCISR(void){
     }
     else if(last_channel_2 == 1){                                //Input 9 is not high and changed from 1 to 0
       last_channel_2 = 0;                                        //Remember current input state
-      receiver_input[2] = current_time - timer_2;                //Channel 2 is current_time - timer_2
+      receiver_input[1] = current_time - timer_2;                //Channel 2 is current_time - timer_2
     }
     //Channel 3=========================================
     if(PINB & B00000100 ){                                       //Is input 10 high?
@@ -183,7 +191,7 @@ void RCISR(void){
     }
     else if(last_channel_3 == 1){                                //Input 10 is not high and changed from 1 to 0
       last_channel_3 = 0;                                        //Remember current input state
-      receiver_input[3] = current_time - timer_3;                //Channel 3 is current_time - timer_3
+      receiver_input[2] = current_time - timer_3;                //Channel 3 is current_time - timer_3
 
     }
     //Channel 4=========================================
@@ -195,9 +203,12 @@ void RCISR(void){
     }
     else if(last_channel_4 == 1){                                //Input 11 is not high and changed from 1 to 0
       last_channel_4 = 0;                                        //Remember current input state
-      receiver_input[4] = current_time - timer_4;                //Channel 4 is current_time - timer_4
+      receiver_input[3] = current_time - timer_4;                //Channel 4 is current_time - timer_4
     }
     RCISRFlag = false;
+    ES_Event ThisEvent;
+    ThisEvent.EventType = ES_UPDATERC;
+    PostUAVFSM(ThisEvent);
   }
 }
 
@@ -205,12 +216,13 @@ void RCISR(void){
  private functions
  ***************************************************************************/
 static void InitRCISR(void){ // tie the interrupt to the pin
-  PCICR |= (1 << PCIE0);                                       //Set PCIE0 to enable PCMSK0 scan.
-  PCMSK0 |= (1 << PCINT0);                                     //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT1);                                     //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT2);                                     //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT3);                                     //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+  PCICR |= (1 << PCIE0);                                                    //Set PCIE0 to enable PCMSK0 scan.
+  PCMSK0 |= (1 << PCINT0);                                                  //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
+  PCMSK0 |= (1 << PCINT1);                                                  //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
+  PCMSK0 |= (1 << PCINT2);                                                  //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
+  PCMSK0 |= (1 << PCINT3);                                                  //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
 }
+
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 
