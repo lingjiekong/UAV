@@ -62,7 +62,7 @@
 // the name of the run function
 #define SERV_1_RUN RunUAVFSM
 // How big should this services Queue be?
-#define SERV_1_QUEUE_SIZE 3
+#define SERV_1_QUEUE_SIZE 20
 #endif
 
 /****************************************************************************/
@@ -76,7 +76,7 @@
 // the name of the run function
 #define SERV_2_RUN RunRCService
 // How big should this services Queue be?
-#define SERV_2_QUEUE_SIZE 3
+#define SERV_2_QUEUE_SIZE 10
 #endif
 
 /****************************************************************************/
@@ -342,6 +342,6 @@ typedef enum {  ES_NO_EVENT = 0,
 // the timer number matches where the timer event will be routed
 // These symbolic names should be changed to be relevant to your application 
 
-#define SERVICE0_TIMER 15
+#define ONE_SEC 98
 
 #endif /* CONFIGURE_H */

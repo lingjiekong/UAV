@@ -37,6 +37,7 @@
 #define FIVE_SEC (ONE_SEC*5)
 #define YAW_CALI_VECTOR_LENGTH 50
 #define CALI_RANGE 0.2
+#define ZEROTIMERLENGTH 4000
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -57,7 +58,8 @@ static double yawCaliMax;
 static double yawCaliMin;
 static int yawCounter = 0;
 static UAVState_t CurrentState;
-
+static unsigned long ZeroTimer;
+unsigned long TimerChannel1, TimerChannel2, TimerChannel3, TimerChannel4, ESCLoopTimer;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -86,7 +88,8 @@ bool InitUAVFSM ( uint8_t Priority )
    *******************************************/  
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
-  CurrentState = CaliUAV;
+  // CurrentState = CaliUAV;
+  CurrentState = RunUAV;
   if (ES_PostToService( MyPriority, ThisEvent) == true)
   {
       return true;
@@ -161,17 +164,32 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
       //   Serial.print("\t");
       //   Serial.println(ypr[2] * 180/M_PI);
       // }
-        if (ES_UPDATERC == ThisEvent.EventType){
-          GetRC(&RCInput[0]);
-          Serial.print("RCInput\t");
-          Serial.print(RCInput[0]);
-          Serial.print("\t");
-          Serial.print(RCInput[1]);
-          Serial.print("\t");
-          Serial.print(RCInput[2]);
-          Serial.print("\t");
-          Serial.println(RCInput[3]);  
+    if (ES_UPDATERC == ThisEvent.EventType){
+      if ((micros() - ZeroTimer) > ZEROTIMERLENGTH){
+        GetRC(&RCInput[0]);
+        Serial.print("RCInput\t");
+        Serial.print(RCInput[0]);
+        Serial.print("\t");
+        Serial.print(RCInput[1]);
+        Serial.print("\t");
+        Serial.print(RCInput[2]);
+        Serial.print("\t");
+        Serial.println(RCInput[3]);  
+        ZeroTimer = micros();
+        PORTD |= B11110000;                                        //Set port 4, 5, 6 and 7 high at once
+        TimerChannel1 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 4 is set low
+        TimerChannel2 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 5 is set low
+        TimerChannel3 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 6 is set low
+        TimerChannel4 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 7 is set low
+        while(PORTD >= 16){                                        //Execute the loop until digital port 4 to 7 is low
+          ESCLoopTimer = micros();                               //Check the current time
+          if(TimerChannel1 <= ESCLoopTimer)PORTD &= B11101111; //When the delay time is expired, digital port 4 is set low
+          if(TimerChannel2 <= ESCLoopTimer)PORTD &= B11011111; //When the delay time is expired, digital port 5 is set low
+          if(TimerChannel3 <= ESCLoopTimer)PORTD &= B10111111; //When the delay time is expired, digital port 6 is set low
+          if(TimerChannel4 <= ESCLoopTimer)PORTD &= B01111111; //When the delay time is expired, digital port 7 is set low
         }
+      }
+    }
     break;
   }
   return ReturnEvent;
