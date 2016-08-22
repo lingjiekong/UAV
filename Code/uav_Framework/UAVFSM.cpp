@@ -40,6 +40,12 @@
 #define ZEROTIMERLENGTH 4000
 #define INIT_THROTLE 1050
 #define BATTERY_PIN A0
+#define DEAD_BAND_MAX 1508
+#define DEAD_BAND_MIN 1492
+#define CONVERT_FACTOR 5.5
+#define MAX_ROLL 400
+#define MAX_PITCH 400
+#define MAX_YAW 400
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -48,7 +54,12 @@
 static void yawCali(void);
 static bool yawCaliComplete(void);
 static void yawCaliResult(void); 
-
+static void calSetPoint(void);
+static void getBatteryVoltage(void);
+static void getReceiverInput(void);
+static void getGyroValue(void);
+static void calController(void);
+static void ESCCommand(void);
 
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
@@ -67,6 +78,21 @@ static int batteryVoltage;
 static int receiverInputChannel1, receiverInputChannel2, receiverInputChannel3, receiverInputChannel4;
 static float lastGyroPitch, lastGyroRoll, lastGyroYaw;
 static float currentGyroPitch, currentGyroRoll, currentGyroYaw;
+static float pitchSetPoint, rollSetPoint, yawSetPoint;
+static float currPitchError, currRollError, currYawError, lastPitchError, lastRollError, lastYawError ;
+static float pitchSum, rollSum, yawSum;
+
+// need to tune the PID gain here 
+static float pRoll = 1.4;
+static float iRoll = 0.05;
+static float dRoll = 15;
+static float pPitch = pRoll;
+static float iPitch = iRoll;
+static float dPitch = dRoll;
+static float pYaw = 4.0;
+static float iYaw = 0.02;
+static float dYaw = 0.0;
+
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -191,27 +217,12 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
       //   Serial.println(ypr[2] * 180/M_PI);
       // }
     if (ES_UPDATERC == ThisEvent.EventType){
-      // 10.5V is 1050
-      batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
-      receiverInputChannel1 = RCInput[0];
-      receiverInputChannel2 = RCInput[1];
-      receiverInputChannel3 = RCInput[2];
-      receiverInputChannel4 = RCInput[3];
-
-      if (GetUpdateStatus()){
-        GetYPR(&ypr[0]);
-        currentGyroYaw = ypr[0];
-        currentGyroPitch = ypr[1];
-        currentGyroRoll = ypr[2];
-        currentGyroYaw = (lastGyroYaw * 0.8) + (currentGyroYaw * 0.2);            //Gyro pid input is deg/sec.
-        currentGyroPitch = (lastGyroPitch * 0.8) + (currentGyroPitch * 0.2);         //Gyro pid input is deg/sec.
-        currentGyroRoll = (lastGyroRoll * 0.8) + (currentGyroRoll * 0.2);               //Gyro pid input is deg/sec.
-        lastGyroYaw = currentGyroYaw;
-        lastGyroPitch = currentGyroPitch;
-        lastGyroRoll = currentGyroRoll;
-        ResetUpdateStatus();
-      }
-
+      getReceiverInput();
+      getGyroValue();
+      calSetPoint();
+      getBatteryVoltage();
+      calController();
+      ESCCommand();
 
       if ((micros() - ZeroTimer) > ZEROTIMERLENGTH){
         GetRC(&RCInput[0]);
@@ -223,19 +234,6 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
         Serial.print(RCInput[2]);
         Serial.print("\t");
         Serial.println(RCInput[3]);  
-
-
-
-
-
-
-
-
-
-
-
-
-
         ZeroTimer = micros();
         PORTD |= B11110000;                                        //Set port 4, 5, 6 and 7 high at once
         TimerChannel1 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 4 is set low
@@ -303,7 +301,121 @@ static void yawCaliResult(void){
   yawCalivalue /= YAW_CALI_VECTOR_LENGTH;
 }
 
+static void getBatteryVoltage(void){
+  // 10.5V is 1050
+  // batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
+  batteryVoltage = 1200;
+}
 
+static void getReceiverInput(void){
+  receiverInputChannel1 = RCInput[0];
+  receiverInputChannel2 = RCInput[1];
+  receiverInputChannel3 = RCInput[2];
+  receiverInputChannel4 = RCInput[3];
+}
+
+static void getGyroValue(void){
+  if (GetUpdateStatus()){
+    GetYPR(&ypr[0]);
+    currentGyroYaw = ypr[0];
+    currentGyroPitch = ypr[1];
+    currentGyroRoll = ypr[2];
+    currentGyroYaw = (lastGyroYaw * 0.8) + (currentGyroYaw * 0.2);            //Gyro pid input is deg/sec.
+    currentGyroPitch = (lastGyroPitch * 0.8) + (currentGyroPitch * 0.2);      //Gyro pid input is deg/sec.
+    currentGyroRoll = (lastGyroRoll * 0.8) + (currentGyroRoll * 0.2);         //Gyro pid input is deg/sec.
+    lastGyroYaw = currentGyroYaw;
+    lastGyroPitch = currentGyroPitch;
+    lastGyroRoll = currentGyroRoll;
+    ResetUpdateStatus();
+  }
+}
+
+static void calSetPoint(void){
+  // channel 1 is roll
+  if (receiverInputChannel1 > DEAD_BAND_MAX){
+    rollSetPoint = (receiverInputChannel1 - DEAD_BAND_MAX)/CONVERT_FACTOR;
+  } else if (receiverInputChannel1 < DEAD_BAND_MIN){
+    rollSetPoint = (receiverInputChannel1 - DEAD_BAND_MIN)/CONVERT_FACTOR;
+  } else {
+    rollSetPoint = 0;
+  }
+
+  // channel 2 is pitch
+  if (receiverInputChannel2 > DEAD_BAND_MAX){
+    pitchSetPoint = (receiverInputChannel2 - DEAD_BAND_MAX)/CONVERT_FACTOR;
+  } else if (receiverInputChannel2 < DEAD_BAND_MIN){
+    pitchSetPoint = (receiverInputChannel2 - DEAD_BAND_MIN)/CONVERT_FACTOR;
+  } else {
+    pitchSetPoint = 0;
+  }
+
+  // channel 3 is yaw
+  if (receiverInputChannel3 > INIT_THROTLE){
+    if (receiverInputChannel4 > DEAD_BAND_MAX){
+      yawSetPoint = (receiverInputChannel4 - DEAD_BAND_MAX)/CONVERT_FACTOR;
+    } else if (receiverInputChannel4 < DEAD_BAND_MIN){
+      yawSetPoint = (receiverInputChannel4 - DEAD_BAND_MIN)/CONVERT_FACTOR;
+    } else {
+      yawSetPoint = 0;
+    }
+  } else {
+    yawSetPoint = 0;
+  }
+}
+
+static void calController(void){
+  // roll
+  currRollError = currentGyroRoll - rollSetPoint;
+  rollSum += currRollError*iRoll;
+  if (rollSum > MAX_ROLL){
+    rollSum = MAX_ROLL;
+  } else if (rollSum < -1*MAX_ROLL){
+    rollSum = -1*MAX_ROLL;
+  }
+  currRollError = pRoll*currRollError + rollSum + dRoll*(currRollError - lastRollError);
+  if (currRollError > MAX_ROLL){
+    currRollError = MAX_ROLL;
+  } else if (currRollError < -1*MAX_ROLL){
+    currRollError = -1*MAX_ROLL;
+  }
+  lastRollError = currRollError;
+
+  // pitch
+  currPitchError = currentGyroPitch - pitchSetPoint;
+  pitchSum += currPitchError*iPitch;
+  if (pitchSum > MAX_PITCH){
+    pitchSum = MAX_PITCH;
+  } else if (pitchSum < -1*MAX_PITCH){
+    pitchSum = -1*MAX_PITCH;
+  }
+  currPitchError = pPitch*currPitchError + pitchSum + dPitch*(currPitchError - lastPitchError);
+  if (currPitchError > MAX_PITCH){
+    currPitchError = MAX_PITCH;
+  } else if (currPitchError < -1*MAX_PITCH){
+    currPitchError = -1*MAX_PITCH;
+  }
+  lastPitchError = currPitchError;
+
+  // yaw
+  currYawError = currentGyroYaw - yawSetPoint;
+  yawSum += currYawError*iYaw;
+  if (yawSum > MAX_YAW){
+    yawSum = MAX_YAW;
+  } else if (yawSum < -1*MAX_YAW){
+    yawSum = -1*MAX_YAW;
+  }
+  currYawError = pYaw*currYawError + yawSum + dYaw*(currYawError - lastYawError);
+  if (currYawError > MAX_YAW){
+    currYawError = MAX_YAW;
+  } else if (currYawError < -1*MAX_YAW){
+    currYawError = -1*MAX_YAW;
+  }
+  lastYawError = currYawError;
+}
+
+static void ESCCommand(void){
+
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 
