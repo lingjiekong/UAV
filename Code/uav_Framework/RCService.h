@@ -19,5 +19,6 @@ ES_Event RunRCService( ES_Event ThisEvent );
 
 void GetRC(int* RCCopy);
 void RCISR(void);
+void InitRCISR(void);
 #endif /* ServRCSERVICE_H */
 

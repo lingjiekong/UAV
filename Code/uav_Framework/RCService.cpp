@@ -36,13 +36,14 @@
 
 /*---------------------------- Global Functions ---------------------------*/
 void GetRC(int* RCCopy);
+void InitRCISR(void);   
+void RCISR(void);
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
    relevant to the behaviour of this service
 */
-static void InitRCISR(void);   
-void RCISR(void);
+   
 /*---------------------------- Module Variables ---------------------------*/
 // everybode needs a state machine variable, you may need others as well.
 // type of state variable should match that of enum in header file
@@ -82,7 +83,6 @@ bool InitRCService ( uint8_t Priority )
   /********************************************
    in here you write your initialization codes
    *******************************************/
-  InitRCISR();
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService( MyPriority, ThisEvent) == true)
@@ -212,7 +212,7 @@ void RCISR(void){
 /***************************************************************************
  private functions
  ***************************************************************************/
-static void InitRCISR(void){ // tie the interrupt to the pin
+void InitRCISR(void){ // tie the interrupt to the pin
   PCICR |= (1 << PCIE0);                                                    //Set PCIE0 to enable PCMSK0 scan.
   PCMSK0 |= (1 << PCINT0);                                                  //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
   PCMSK0 |= (1 << PCINT1);                                                  //Set PCINT1 (digital input 9)to trigger an interrupt on state change.

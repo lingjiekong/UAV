@@ -22,6 +22,8 @@ ES_Event RunIMUService( ES_Event ThisEvent );
 // double GetPitch(void);
 void IMUISR(void);
 void GetYPR(float* yprCopy);
+bool GetUpdateStatus(void);
+void ResetUpdateStatus(void);
 
 #endif /* SerIMUService_H */
 

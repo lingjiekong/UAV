@@ -38,6 +38,8 @@
 #define YAW_CALI_VECTOR_LENGTH 50
 #define CALI_RANGE 0.2
 #define ZEROTIMERLENGTH 4000
+#define INIT_THROTLE 1050
+#define BATTERY_PIN A0
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -46,6 +48,7 @@
 static void yawCali(void);
 static bool yawCaliComplete(void);
 static void yawCaliResult(void); 
+
 
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
@@ -59,7 +62,11 @@ static double yawCaliMin;
 static int yawCounter = 0;
 static UAVState_t CurrentState;
 static unsigned long ZeroTimer;
-unsigned long TimerChannel1, TimerChannel2, TimerChannel3, TimerChannel4, ESCLoopTimer;
+static unsigned long TimerChannel1, TimerChannel2, TimerChannel3, TimerChannel4, ESCLoopTimer;
+static int batteryVoltage;
+static int receiverInputChannel1, receiverInputChannel2, receiverInputChannel3, receiverInputChannel4;
+static float lastGyroPitch, lastGyroRoll, lastGyroYaw;
+static float currentGyroPitch, currentGyroRoll, currentGyroYaw;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -88,8 +95,9 @@ bool InitUAVFSM ( uint8_t Priority )
    *******************************************/  
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
-  // CurrentState = CaliUAV;
-  CurrentState = RunUAV;
+  CurrentState = CaliUAV;
+  Serial.println("CurrentState = CaliUAV");
+  // CurrentState = CheckUAV;
   if (ES_PostToService( MyPriority, ThisEvent) == true)
   {
       return true;
@@ -149,7 +157,25 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
         yawCali();
         if (yawCaliComplete()){
           yawCaliResult();
-          CurrentState = RunUAV;
+          // Initialize the interrupt for RC
+          InitRCISR();
+          CurrentState = CheckUAV;
+          Serial.println("CurrentState = CheckUAV");
+        }
+      }
+    break;
+
+
+
+    case CheckUAV:
+      if (ES_UPDATERC == ThisEvent.EventType){
+        GetRC(&RCInput[0]); 
+        // input the first time might be all zero because there is not enought time to read from interrupt
+        if (RCInput[0] != 0 && RCInput[1] != 0 && RCInput[2] != 0 && RCInput[3] != 0){  
+          if (RCInput[2] < INIT_THROTLE){
+            CurrentState = RunUAV;
+            Serial.println("CurrentState = RunUAV");
+          }
         }
       }
     break;
@@ -165,6 +191,28 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
       //   Serial.println(ypr[2] * 180/M_PI);
       // }
     if (ES_UPDATERC == ThisEvent.EventType){
+      // 10.5V is 1050
+      batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
+      receiverInputChannel1 = RCInput[0];
+      receiverInputChannel2 = RCInput[1];
+      receiverInputChannel3 = RCInput[2];
+      receiverInputChannel4 = RCInput[3];
+
+      if (GetUpdateStatus()){
+        GetYPR(&ypr[0]);
+        currentGyroYaw = ypr[0];
+        currentGyroPitch = ypr[1];
+        currentGyroRoll = ypr[2];
+        currentGyroYaw = (lastGyroYaw * 0.8) + (currentGyroYaw * 0.2);            //Gyro pid input is deg/sec.
+        currentGyroPitch = (lastGyroPitch * 0.8) + (currentGyroPitch * 0.2);         //Gyro pid input is deg/sec.
+        currentGyroRoll = (lastGyroRoll * 0.8) + (currentGyroRoll * 0.2);               //Gyro pid input is deg/sec.
+        lastGyroYaw = currentGyroYaw;
+        lastGyroPitch = currentGyroPitch;
+        lastGyroRoll = currentGyroRoll;
+        ResetUpdateStatus();
+      }
+
+
       if ((micros() - ZeroTimer) > ZEROTIMERLENGTH){
         GetRC(&RCInput[0]);
         Serial.print("RCInput\t");
@@ -175,6 +223,19 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
         Serial.print(RCInput[2]);
         Serial.print("\t");
         Serial.println(RCInput[3]);  
+
+
+
+
+
+
+
+
+
+
+
+
+
         ZeroTimer = micros();
         PORTD |= B11110000;                                        //Set port 4, 5, 6 and 7 high at once
         TimerChannel1 = RCInput[2] + ZeroTimer;   //Calculate the time when digital port 4 is set low

@@ -53,6 +53,8 @@ MPU6050 mpu;
 /*---------------------------- Global Functions ---------------------------*/
 void IMUISR(void);
 void GetYPR(float* yprCopy);
+bool GetUpdateStatus(void);
+void ResetUpdateStatus(void);
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
    relevant to the behaviour of this service
@@ -64,6 +66,7 @@ static void dmpDataReady(void);
 // type of state variable should match that of enum in header file
 
 // with the introduction of Gen2, we need a module level Priority variable
+static bool updateStatus = false;
 static uint8_t MyPriority;
 bool blinkState = false;
 
@@ -118,7 +121,7 @@ bool InitIMUService ( uint8_t Priority )
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
-      TWBR = 12; // 400kHz I2C clock (200kHz if CPU is 8MHz)
+      TWBR = 12; // 400kHz I2C clock (200kHz if CPU is 8MHz) initially is 24
   #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
       Fastwire::setup(400, true);
   #endif
@@ -323,9 +326,10 @@ ES_Event RunIMUService( ES_Event ThisEvent )
             mpu.dmpGetQuaternion(&q, fifoBuffer);
             mpu.dmpGetGravity(&gravity, &q);
             mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-            ES_Event ThisEvent;
-            ThisEvent.EventType = ES_UPDATEYRP;
-            PostUAVFSM(ThisEvent);
+            updateStatus = true;
+            // ES_Event ThisEvent;
+            // ThisEvent.EventType = ES_UPDATEYRP;
+            // PostUAVFSM(ThisEvent);
             // Serial.print("ypr\t");
             // Serial.print(ypr[0] * 180/M_PI);
             // Serial.print("\t");
@@ -389,6 +393,14 @@ void GetYPR(float* yprCopy){
   for (int i = 0; i < 3; i++){
     *(yprCopy + i) = ypr[i];
   }
+}
+
+bool GetUpdateStatus(void){
+  return updateStatus;
+}
+
+void ResetUpdateStatus(void){
+  updateStatus = false;
 }
 /***************************************************************************
  private functions
