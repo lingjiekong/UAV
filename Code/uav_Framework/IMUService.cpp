@@ -55,6 +55,8 @@ void IMUISR(void);
 void GetYPR(float* yprCopy);
 bool GetUpdateStatus(void);
 void ResetUpdateStatus(void);
+void turnOffIMUPost(void);
+
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
    relevant to the behaviour of this service
@@ -67,6 +69,7 @@ static void dmpDataReady(void);
 
 // with the introduction of Gen2, we need a module level Priority variable
 static bool updateStatus = false;
+static bool IMUPostStatus = true;
 static uint8_t MyPriority;
 bool blinkState = false;
 
@@ -327,9 +330,11 @@ ES_Event RunIMUService( ES_Event ThisEvent )
             mpu.dmpGetGravity(&gravity, &q);
             mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
             updateStatus = true;
-            // ES_Event ThisEvent;
-            // ThisEvent.EventType = ES_UPDATEYRP;
-            // PostUAVFSM(ThisEvent);
+            if (true == IMUPostStatus){
+              ES_Event ThisEvent;
+              ThisEvent.EventType = ES_UPDATEYRP;
+              PostUAVFSM(ThisEvent);
+            }
             // Serial.print("ypr\t");
             // Serial.print(ypr[0] * 180/M_PI);
             // Serial.print("\t");
@@ -401,6 +406,10 @@ bool GetUpdateStatus(void){
 
 void ResetUpdateStatus(void){
   updateStatus = false;
+}
+
+void turnOffIMUPost(void){
+  IMUPostStatus = false;
 }
 /***************************************************************************
  private functions

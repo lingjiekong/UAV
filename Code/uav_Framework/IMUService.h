@@ -24,6 +24,7 @@ void IMUISR(void);
 void GetYPR(float* yprCopy);
 bool GetUpdateStatus(void);
 void ResetUpdateStatus(void);
+void turnOffIMUPost(void);
 
 #endif /* SerIMUService_H */
 
