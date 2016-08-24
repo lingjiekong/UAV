@@ -28,7 +28,6 @@
 #include "IMUService.h"
 #include "RCService.h"
 
-
 /*----------------------------- Module Defines ----------------------------*/
 // these times assume a 10.24mS/tick timing
 #define ONE_SEC 98
@@ -36,11 +35,12 @@
 #define TWO_SEC (ONE_SEC*2)
 #define FIVE_SEC (ONE_SEC*5)
 #define CALI_VECTOR_LENGTH 50
+#define CALI_PITCHROLL_LENGTH 500
 #define CALI_RANGE 0.2
 #define ZEROTIMERLENGTH 4000
 #define INIT_THROTLE 1050
-#define DEAD_BAND_MAX 1508
-#define DEAD_BAND_MIN 1492
+#define DEAD_BAND_MAX 1520
+#define DEAD_BAND_MIN 1480
 #define CONVERT_FACTOR 5.5
 #define MAX_ROLL 400
 #define MAX_PITCH 400
@@ -63,7 +63,7 @@
 */
 static void pinConfig(void);
 static void yawCali(void);
-static void pitchrollCali(void);
+static void pitchrollCaliSum(void);
 static bool yawCaliComplete(void);
 static void yawCaliResult(void); 
 static void calSetPoint(void);
@@ -103,7 +103,7 @@ static int esc1, esc2, esc3, esc4;
 // need to tune the PID gain here 
 static float pRoll = 1.4;
 static float iRoll = 0.05;
-static float dRoll = 15;
+static float dRoll = 1; // use to be 15
 static float pPitch = pRoll;
 static float iPitch = iRoll;
 static float dPitch = dRoll;
@@ -141,8 +141,8 @@ bool InitUAVFSM ( uint8_t Priority )
   pinConfig();
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
-  CurrentState = CaliUAV;
-  Serial.println("CurrentState = CaliUAV");
+  CurrentState = CaliUAVYaw;
+  Serial.println("CurrentState = CaliUAVYaw");
   // CurrentState = CheckUAV;
   if (ES_PostToService( MyPriority, ThisEvent) == true)
   {
@@ -197,23 +197,36 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
   ES_Event ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors  
   switch (CurrentState){
-    case CaliUAV:
+    case CaliUAVYaw:
       if (ES_UPDATEYRP == ThisEvent.EventType){
         GetYPR(&ypr[0]);
         yawCali();
-        
-        // there are some problem in calibration and might need a separate state for pitch and roll cali
-        pitchrollCali();
-
-
-
         if (yawCaliComplete()){
           yawCaliResult();
           // Initialize the interrupt for RC
           InitRCISR();
-          // stop post ES_UPDATEYRP and will go to grab it when need 
+          CurrentState = CaliUAVPitchRoll;
+          Serial.println("CurrentState = CaliUAVPitchRoll");
+        }
+      }
+    break;
+
+    case CaliUAVPitchRoll:
+    if (ES_UPDATEYRP == ThisEvent.EventType){
+        GetYPR(&ypr[0]);
+        pitchrollCaliSum();
+        // stop post ES_UPDATEYRP and will go to grab it when need 
+        if (CALI_PITCHROLL_LENGTH == pitchrollCounter){
           turnOffIMUPost();
+          pitchCaliValue = pitchCaliValue/(double)CALI_PITCHROLL_LENGTH;
+          rollCaliValue = rollCaliValue/(double)CALI_PITCHROLL_LENGTH;
           CurrentState = CheckUAV;
+          // Serial.print("pitchCaliValue: ");
+          // Serial.println(pitchCaliValue);
+          // Serial.print("rollCaliValue: ");
+          // Serial.println(rollCaliValue);  
+          // Serial.print("pitchrollCounter: ");
+          // Serial.println(pitchrollCounter);
           Serial.println("CurrentState = CheckUAV");
         }
       }
@@ -266,16 +279,10 @@ static void yawCali(void){
   }
 }
 
-static void pitchrollCali(void){
-  if (pitchrollCounter < CALI_VECTOR_LENGTH){
-    pitchCaliValue += ypr[1]*(180/M_PI);
-    rollCaliValue += ypr[2]*(180/M_PI);
-    pitchrollCounter++;
-  } else if (pitchrollCounter == CALI_VECTOR_LENGTH){
-    pitchCaliValue /= (double) CALI_VECTOR_LENGTH;
-    rollCaliValue /= (double) CALI_VECTOR_LENGTH;
-    pitchrollCounter++;
-  }
+static void pitchrollCaliSum(void){
+  pitchCaliValue += ypr[1]*(180/M_PI);
+  rollCaliValue += ypr[2]*(180/M_PI);
+  pitchrollCounter++;
 }
 
 
@@ -352,12 +359,12 @@ static void getGyroValue(void){
     currentGyroYaw = (lastGyroYaw * 0.8) + (currentGyroYaw * 0.2);            //Gyro pid input is deg/sec.
     currentGyroPitch = (lastGyroPitch * 0.8) + (currentGyroPitch * 0.2);      //Gyro pid input is deg/sec.
     currentGyroRoll = (lastGyroRoll * 0.8) + (currentGyroRoll * 0.2);         //Gyro pid input is deg/sec.
-    Serial.print("ypr\t");
-    Serial.print(currentGyroYaw);
-    Serial.print("\t");
-    Serial.print(currentGyroPitch);
-    Serial.print("\t");
-    Serial.println(currentGyroRoll);
+    // Serial.print("ypr\t");
+    // Serial.print(currentGyroYaw);
+    // Serial.print("\t");
+    // Serial.print(currentGyroPitch);
+    // Serial.print("\t");
+    // Serial.println(currentGyroRoll);
     lastGyroYaw = currentGyroYaw;
     lastGyroPitch = currentGyroPitch;
     lastGyroRoll = currentGyroRoll;
@@ -396,12 +403,12 @@ static void calSetPoint(void){
   } else {
     yawSetPoint = 0.0;
   }
-  Serial.print("setPointypr\t");
-  Serial.print(yawSetPoint);
-  Serial.print("\t");
-  Serial.print(pitchSetPoint);
-  Serial.print("\t");
-  Serial.println(rollSetPoint);
+  // Serial.print("setPointypr\t");
+  // Serial.print(yawSetPoint);
+  // Serial.print("\t");
+  // Serial.print(pitchSetPoint);
+  // Serial.print("\t");
+  // Serial.println(rollSetPoint);
 }
 
 static void calController(void){
@@ -421,6 +428,7 @@ static void calController(void){
   }
   lastRollError = currRollError;
 
+
   // pitch
   currPitchError = currentGyroPitch - pitchSetPoint;
   pitchSum += currPitchError*iPitch;
@@ -437,6 +445,7 @@ static void calController(void){
   }
   lastPitchError = currPitchError;
 
+
   // yaw
   currYawError = currentGyroYaw - yawSetPoint;
   yawSum += currYawError*iYaw;
@@ -452,13 +461,12 @@ static void calController(void){
     currYawError = -1*MAX_YAW;
   }
   lastYawError = currYawError;
-
-  Serial.print("currErrorypr\t");
-  Serial.print(currYawError);
-  Serial.print("\t");
-  Serial.print(currPitchError);
-  Serial.print("\t");
-  Serial.println(currRollError);
+  // Serial.print("currErrorypr\t");
+  // Serial.print(currYawError);
+  // Serial.print("\t");
+  // Serial.print(currPitchError);
+  // Serial.print("\t");
+  // Serial.println(currRollError);
 }
 
 static void ESCCommand(void){
@@ -509,14 +517,14 @@ static void ESCCommand(void){
     esc4 = ESC_MIN;
   }
 
-  Serial.print("esc1234\t");
-  Serial.print(esc1);
-  Serial.print("\t");
-  Serial.print(esc2);
-  Serial.print("\t");
-  Serial.print(esc3);
-  Serial.print("\t");
-  Serial.println(esc4);
+  // Serial.print("esc1234\t");
+  // Serial.print(esc1);
+  // Serial.print("\t");
+  // Serial.print(esc2);
+  // Serial.print("\t");
+  // Serial.print(esc3);
+  // Serial.print("\t");
+  // Serial.println(esc4);
 
   // pass control commmand to ESC
   if ((micros() - ZeroTimer) > ZEROTIMERLENGTH){
