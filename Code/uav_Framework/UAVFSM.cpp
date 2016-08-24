@@ -56,6 +56,7 @@
 // pin config 
 #define BATTERY_PIN A0
 #define BATTERY_LED_PIN 12
+#define CALI_COMPLETE_LED_PIN 13
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -221,6 +222,8 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
           pitchCaliValue = pitchCaliValue/(double)CALI_PITCHROLL_LENGTH;
           rollCaliValue = rollCaliValue/(double)CALI_PITCHROLL_LENGTH;
           CurrentState = CheckUAV;
+          // calibration is completed
+          digitalWrite(CALI_COMPLETE_LED_PIN, HIGH);
           // Serial.print("pitchCaliValue: ");
           // Serial.println(pitchCaliValue);
           // Serial.print("rollCaliValue: ");
@@ -265,6 +268,7 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
  ***************************************************************************/
 static void pinConfig(void){
   pinMode(BATTERY_LED_PIN, OUTPUT);
+  pinMode(CALI_COMPLETE_LED_PIN, OUTPUT);
 }
 
 static void yawCali(void){
