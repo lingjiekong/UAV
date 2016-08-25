@@ -56,7 +56,7 @@
 // pin config 
 #define BATTERY_PIN A0
 #define BATTERY_LED_PIN 12
-#define CALI_COMPLETE_LED_PIN 13
+#define CALI_COMPLETE_LED_PIN A0
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -104,7 +104,7 @@ static int esc1, esc2, esc3, esc4;
 // need to tune the PID gain here 
 static float pRoll = 1.4;
 static float iRoll = 0.05;
-static float dRoll = 1; // use to be 15
+static float dRoll = 3; // use to be 15
 static float pPitch = pRoll;
 static float iPitch = iRoll;
 static float dPitch = dRoll;
@@ -269,6 +269,8 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
 static void pinConfig(void){
   pinMode(BATTERY_LED_PIN, OUTPUT);
   pinMode(CALI_COMPLETE_LED_PIN, OUTPUT);
+  digitalWrite(CALI_COMPLETE_LED_PIN, LOW);
+  digitalWrite(BATTERY_LED_PIN, LOW);
 }
 
 static void yawCali(void){
