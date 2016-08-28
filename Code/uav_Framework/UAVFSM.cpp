@@ -54,7 +54,7 @@
 #define ESC_MIN 1000
 
 // pin config 
-#define BATTERY_PIN A0
+#define BATTERY_PIN A1
 #define BATTERY_LED_PIN 12
 #define CALI_COMPLETE_LED_PIN A0
 
