@@ -55,8 +55,8 @@
 
 // pin config 
 #define BATTERY_PIN A1
-#define BATTERY_LED_PIN 12
-#define CALI_COMPLETE_LED_PIN A0
+#define BATTERY_LED_PIN A0
+#define CALI_COMPLETE_LED_PIN 12
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -237,7 +237,7 @@ ES_Event RunUAVFSM( ES_Event ThisEvent )
 
     case CheckUAV:
       if (ES_UPDATERC == ThisEvent.EventType){
-        GetRC(&RCInput[0]); 
+        getReceiverInput(); 
         // input the first time might be all zero because there is not enought time to read from interrupt
         if (RCInput[0] != 0 && RCInput[1] != 0 && RCInput[2] != 0 && RCInput[3] != 0){  
           if (RCInput[2] < INIT_THROTLE){
@@ -346,14 +346,14 @@ static void getReceiverInput(void){
   receiverInputChannel2 = RCInput[1];
   receiverInputChannel3 = RCInput[2];
   receiverInputChannel4 = RCInput[3];
-  // Serial.print("RCInput\t");
-  // Serial.print(RCInput[0]);
-  // Serial.print("\t");
-  // Serial.print(RCInput[1]);
-  // Serial.print("\t");
-  // Serial.print(RCInput[2]);
-  // Serial.print("\t");
-  // Serial.println(RCInput[3]);
+  Serial.print("RCInput\t");
+  Serial.print(RCInput[0]);
+  Serial.print("\t");
+  Serial.print(RCInput[1]);
+  Serial.print("\t");
+  Serial.print(RCInput[2]);
+  Serial.print("\t");
+  Serial.println(RCInput[3]);
 }
 
 static void getGyroValue(void){
