@@ -55,8 +55,8 @@
 
 // pin config 
 #define BATTERY_PIN A1
-#define BATTERY_LED_PIN A0
-#define CALI_COMPLETE_LED_PIN 12
+#define BATTERY_LED_PIN 12
+#define CALI_COMPLETE_LED_PIN A0
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
@@ -104,7 +104,7 @@ static int esc1, esc2, esc3, esc4;
 // need to tune the PID gain here 
 static float pRoll = 1.4;
 static float iRoll = 0.05;
-static float dRoll = 3; // use to be 15
+static float dRoll = 1; // use to be 15
 static float pPitch = pRoll;
 static float iPitch = iRoll;
 static float dPitch = dRoll;
@@ -326,8 +326,10 @@ static void yawCaliResult(void){
 
 static void getBatteryVoltage(void){
   // 10.5V is 1050
-  // batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
-  batteryVoltage = 1200;
+  batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
+  // Serial.print("batteryVoltage \t");
+  // Serial.println(batteryVoltage);
+  // batteryVoltage = 1200;
 }
 
 static void isBatteryLow(void){
@@ -346,14 +348,14 @@ static void getReceiverInput(void){
   receiverInputChannel2 = RCInput[1];
   receiverInputChannel3 = RCInput[2];
   receiverInputChannel4 = RCInput[3];
-  Serial.print("RCInput\t");
-  Serial.print(RCInput[0]);
-  Serial.print("\t");
-  Serial.print(RCInput[1]);
-  Serial.print("\t");
-  Serial.print(RCInput[2]);
-  Serial.print("\t");
-  Serial.println(RCInput[3]);
+  // Serial.print("RCInput\t");
+  // Serial.print(RCInput[0]);
+  // Serial.print("\t");
+  // Serial.print(RCInput[1]);
+  // Serial.print("\t");
+  // Serial.print(RCInput[2]);
+  // Serial.print("\t");
+  // Serial.println(RCInput[3]);
 }
 
 static void getGyroValue(void){
@@ -523,14 +525,14 @@ static void ESCCommand(void){
     esc4 = ESC_MIN;
   }
 
-  // Serial.print("esc1234\t");
-  // Serial.print(esc1);
-  // Serial.print("\t");
-  // Serial.print(esc2);
-  // Serial.print("\t");
-  // Serial.print(esc3);
-  // Serial.print("\t");
-  // Serial.println(esc4);
+  Serial.print("esc1234\t");
+  Serial.print(esc1);
+  Serial.print("\t");
+  Serial.print(esc2);
+  Serial.print("\t");
+  Serial.print(esc3);
+  Serial.print("\t");
+  Serial.println(esc4);
 
   // pass control commmand to ESC
   if ((micros() - ZeroTimer) > ZEROTIMERLENGTH){
