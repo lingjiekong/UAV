@@ -96,20 +96,20 @@ static int receiverInputChannel1, receiverInputChannel2, receiverInputChannel3, 
 static float lastGyroPitch, lastGyroRoll, lastGyroYaw;
 static float currentGyroPitch, currentGyroRoll, currentGyroYaw;
 static float pitchSetPoint, rollSetPoint, yawSetPoint;
-static float currPitchError, currRollError, currYawError, lastPitchError, lastRollError, lastYawError ;
+static float currPitchError = 0.0, currRollError = 0.0, currYawError = 0.0, lastPitchError = 0.0, lastRollError = 0.0, lastYawError = 0.0 ;
 static float pitchSum, rollSum, yawSum;
 static int throttle;
 static int esc1, esc2, esc3, esc4;
 
 // need to tune the PID gain here 
-static float pRoll = 1.4;
-static float iRoll = 0.05;
-static float dRoll = 1; // use to be 15
+static float pRoll = 5;//1.4;
+static float iRoll = 0.5;//0.05;
+static float dRoll = 1; // 15;
 static float pPitch = pRoll;
 static float iPitch = iRoll;
 static float dPitch = dRoll;
-static float pYaw = 4.0;
-static float iYaw = 0.02;
+static float pYaw = 0.5; //0.5;
+static float iYaw = 0.00; //0.02;
 static float dYaw = 0.0;
 
 /*------------------------------ Module Code ------------------------------*/
@@ -326,10 +326,10 @@ static void yawCaliResult(void){
 
 static void getBatteryVoltage(void){
   // 10.5V is 1050
-  batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
+  // batteryVoltage = (analogRead(BATTERY_PIN) + 65) * 1.2317;
   // Serial.print("batteryVoltage \t");
   // Serial.println(batteryVoltage);
-  // batteryVoltage = 1200;
+  batteryVoltage = 1200;
 }
 
 static void isBatteryLow(void){
@@ -455,20 +455,27 @@ static void calController(void){
 
 
   // yaw
-  currYawError = currentGyroYaw - yawSetPoint;
-  yawSum += currYawError*iYaw;
-  if (yawSum > MAX_YAW){
-    yawSum = MAX_YAW;
-  } else if (yawSum < -1*MAX_YAW){
-    yawSum = -1*MAX_YAW;
-  }
-  currYawError = pYaw*currYawError + yawSum + dYaw*(currYawError - lastYawError);
+  currYawError = 0.0 - yawSetPoint;
+  currYawError = pYaw*currYawError;
   if (currYawError > MAX_YAW){
     currYawError = MAX_YAW;
   } else if (currYawError < -1*MAX_YAW){
     currYawError = -1*MAX_YAW;
   }
-  lastYawError = currYawError;
+  // currYawError = currentGyroYaw - yawSetPoint;
+  // yawSum += currYawError*iYaw;
+  // if (yawSum > MAX_YAW){
+  //   yawSum = MAX_YAW;
+  // } else if (yawSum < -1*MAX_YAW){
+  //   yawSum = -1*MAX_YAW;
+  // }
+  // currYawError = pYaw*currYawError + yawSum + dYaw*(currYawError - lastYawError);
+  // if (currYawError > MAX_YAW){
+  //   currYawError = MAX_YAW;
+  // } else if (currYawError < -1*MAX_YAW){
+  //   currYawError = -1*MAX_YAW;
+  // }
+  // lastYawError = currYawError;
   // Serial.print("currErrorypr\t");
   // Serial.print(currYawError);
   // Serial.print("\t");
