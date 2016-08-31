@@ -103,7 +103,7 @@ static int esc1, esc2, esc3, esc4;
 
 // need to tune the PID gain here 
 static float pRoll = 5;//1.4;
-static float iRoll = 0.5;//0.05;
+static float iRoll = 0.1;//0.05;
 static float dRoll = 1; // 15;
 static float pPitch = pRoll;
 static float iPitch = iRoll;
